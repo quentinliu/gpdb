@@ -1294,7 +1294,7 @@ getDnsCachedAddress(char *name, int port, int elevel, bool use_cache)
 			if (addr->ai_family == AF_UNIX)
 				continue;
 #endif
-			if (addr->ai_family == AF_INET) /* IPv4 address */
+			if (addr->ai_family == AF_INET || addr->ai_family == AF_INET6) /* IPv4 or IPv6 address */
 			{
 				memset(hostinfo, 0, sizeof(hostinfo));
 				pg_getnameinfo_all((struct sockaddr_storage *) addr->ai_addr, addr->ai_addrlen,
@@ -1313,36 +1313,6 @@ getDnsCachedAddress(char *name, int port, int elevel, bool use_cache)
 				break;
 			}
 		}
-
-#ifdef HAVE_IPV6
-
-		/*
-		 * IPv6 probably would work fine, we'd just need to make sure all the
-		 * data structures are big enough for the IPv6 address.  And on some
-		 * broken systems, you can get an IPv6 address, but not be able to
-		 * bind to it because IPv6 is disabled or missing in the kernel, so
-		 * we'd only want to use the IPv6 address if there isn't an IPv4
-		 * address.  All we really need to do is test this.
-		 */
-		if (((!use_cache && !hostinfo[0]) || (use_cache && e == NULL))
-			&& addrs->ai_family == AF_INET6)
-		{
-			addr = addrs;
-			/* Get a text representation of the IP address */
-			pg_getnameinfo_all((struct sockaddr_storage *) addr->ai_addr, addr->ai_addrlen,
-							   hostinfo, sizeof(hostinfo),
-							   NULL, 0,
-							   NI_NUMERICHOST);
-
-			if (use_cache)
-			{
-				/* Insert into our cache htab */
-				e = (SegIpEntry *) hash_search(segment_ip_cache_htab,
-											   name, HASH_ENTER, NULL);
-				memcpy(e->hostinfo, hostinfo, sizeof(hostinfo));
-			}
-		}
-#endif
 
 		if (use_cache)
 			MemoryContextSwitchTo(oldContext);
